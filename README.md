@@ -4,7 +4,8 @@
 Алгоритм запуска программы:
 1. Запускаем devcontainer через vscode
 2. Выполнить сборку:
-   ``` mkdir -p build
+   ```
+   mkdir -p build
    cd build
    cmake ..
    make
