@@ -3,9 +3,11 @@
 
 Алгоритм запуска программы:
 1. Запускаем devcontainer через vscode
-2. Выполнить сборку``` mkdir -p build
-  cd build
-  cmake ..
-  make```
-3. Запуск программы ```./labN/labN_exe```
-4. Запуск тестов ```./lab1/tests```
+2. Выполнить сборку:
+   ``` mkdir -p build
+   cd build
+   cmake ..
+   make
+   ```
+4. Запуск программы ```./labN/labN_exe```
+5. Запуск тестов ```./lab1/tests```
