@@ -1,191 +1,154 @@
 #include "../include/seven.h"
 
-// --- Конструкторы ---
+// Конструктор по умолчанию
 Seven::Seven() : _size(0), _array(nullptr) {}
 
-Seven::Seven(const size_t &n, unsigned char t) {
-    if (t >= 7) throw std::invalid_argument("Only digits 0-6 are allowed.");
-    _size = n;
-    _array = new unsigned char[_size];
-    for (size_t i = 0; i < _size; ++i) {
+// Конструктор с заданием размера и значения по умолчанию
+Seven::Seven(size_t n, unsigned char t) : _size(n) {
+    if (t >= 7) throw std::invalid_argument("Sevenary digits must be less than 7"); // Проверка на допустимые цифры
+    _array = new unsigned char[n];
+    for (size_t i = 0; i < n; ++i) {
         _array[i] = t;
     }
 }
 
-Seven::Seven(const std::initializer_list<unsigned char> &t) : _size(t.size()) {
-    _array = new unsigned char[_size];
-    size_t i = 0;
-    for (unsigned char c : t) {
-        if (c >= 7) throw std::invalid_argument("Only digits 0-6 are allowed.");
-        _array[i++] = c;
-    }
-}
-
-Seven::Seven(const std::string &t) {
-    validateSevenNumber(t);
-    _size = t.size();
+// Конструктор из строки
+Seven::Seven(const std::string& t) : _size(t.size()) {
     _array = new unsigned char[_size];
     for (size_t i = 0; i < _size; ++i) {
-        _array[i] = t[_size - 1 - i] - '0'; // Строка хранится в обратном порядке
-    }
-}
-
-Seven::Seven(const Seven &other) : _size(other._size) {
-    _array = new unsigned char[_size];
-    for (size_t i = 0; i < _size; ++i) {
-        _array[i] = other._array[i];
-    }
-}
-
-Seven::Seven(Seven &&other) noexcept : _size(other._size), _array(other._array) {
-    other._size = 0;
-    other._array = nullptr;
-}
-
-Seven::~Seven() noexcept {
-    clean();
-}
-
-// --- Методы ---
-void Seven::print() const {
-    for (size_t i = 0; i < _size; ++i) {
-        std::cout << static_cast<int>(_array[_size - 1 - i]); // Обратный порядок
-    }
-    std::cout << std::endl;
-}
-
-size_t Seven::size() const {
-    return _size;
-}
-
-// --- Арифметические операции ---
-Seven Seven::operator+(const Seven &other) const {
-    size_t maxSize = std::max(_size, other._size);
-    Seven result(maxSize + 1, 0); // Результат с запасом на перенос
-
-    unsigned char carry = 0;
-    for (size_t i = 0; i < maxSize; ++i) {
-        unsigned char digit1 = i < _size ? _array[i] : 0;
-        unsigned char digit2 = i < other._size ? other._array[i] : 0;
-        unsigned char sum = digit1 + digit2 + carry;
-        result._array[i] = sum % 7;
-        carry = sum / 7;
-    }
-    if (carry) result._array[maxSize] = carry;
-
-    // Удаление ведущих нулей
-    if (result._array[maxSize] == 0) {
-        --result._size;
-    }
-
-    return result;
-}
-
-Seven Seven::operator-(const Seven &other) const {
-    if (*this < other) throw std::invalid_argument("Result cannot be negative.");
-
-    Seven result(_size, 0);
-    unsigned char borrow = 0;
-
-    for (size_t i = 0; i < _size; ++i) {
-        unsigned char digit1 = _array[i];
-        unsigned char digit2 = i < other._size ? other._array[i] : 0;
-
-        if (digit1 < digit2 + borrow) {
-            result._array[i] = digit1 + 7 - digit2 - borrow;
-            borrow = 1;
-        } else {
-            result._array[i] = digit1 - digit2 - borrow;
-            borrow = 0;
+        // Проверка на корректность семеричных цифр
+        if (t[_size - i - 1] < '0' || t[_size - i - 1] > '6') {
+            throw std::invalid_argument("Sevenary digits must be in range 0-6");
         }
+        _array[i] = t[_size - i - 1] - '0';
+    }
+}
+
+// Конструктор копирования
+Seven::Seven(const Seven& other) : _size(other._size), _array(new unsigned char[other._size]) {
+    for (size_t i = 0; i < _size; ++i) {
+        _array[i] = other._array[i]; // Копирование массива
+    }
+}
+
+// Конструктор перемещения
+Seven::Seven(Seven&& other) noexcept : _size(other._size), _array(other._array) {
+    other._size = 0;
+    other._array = nullptr; // Передача владения ресурсами
+}
+
+// Деструктор
+Seven::~Seven() noexcept {
+    delete[] _array; // Освобождение памяти
+}
+
+// Оператор присваивания копированием
+Seven& Seven::operator=(const Seven& other) {
+    if (this == &other) return *this; // Защита от самоприсваивания
+
+    delete[] _array; // Удаляем текущие ресурсы
+
+    _size = other._size;
+    _array = new unsigned char[_size];
+    for (size_t i = 0; i < _size; ++i) {
+        _array[i] = other._array[i]; // Копирование данных
     }
 
-    // Удаление ведущих нулей
-    while (result._size > 1 && result._array[result._size - 1] == 0) {
+    return *this;
+}
+
+// Оператор присваивания перемещением
+Seven& Seven::operator=(Seven&& other) noexcept {
+    if (this == &other) return *this; // Защита от самоприсваивания
+
+    delete[] _array; // Удаляем текущие ресурсы
+
+    _size = other._size;
+    _array = other._array;
+
+    other._size = 0;
+    other._array = nullptr; // Передача владения ресурсами
+
+    return *this;
+}
+
+// Сложение
+Seven Seven::operator+(const Seven& other) const {
+    size_t maxSize = std::max(_size, other._size);  // Определяем максимальный размер
+    unsigned char carry = 0;  // Перенос
+    Seven result(maxSize + 1);  // Результат с запасом для возможного переноса
+
+    size_t i = 0;
+    for (; i < maxSize || carry; ++i) {
+        unsigned char digitSum = carry;
+
+        // Сложение цифр с текущей позиции в обоих числах
+        if (i < _size) digitSum += _array[i];
+        if (i < other._size) digitSum += other._array[i];
+
+        result._array[i] = digitSum % 7;  // Остаток от деления на 7
+        carry = digitSum / 7;  // Перенос (если сумма больше или равна 7)
+    }
+
+    // Устанавливаем точный размер результата (без лишних нулей)
+    result._size = i;
+    return result;
+}
+
+
+// Вычитание
+Seven Seven::operator-(const Seven& other) const {
+    if (*this < other) {
+        throw std::invalid_argument("Result of subtraction cannot be negative"); // Результат не может быть отрицательным
+    }
+
+    Seven result(_size);
+    unsigned char borrow = 0; // Заём
+
+    for (size_t i = 0; i < _size; ++i) {
+        unsigned char digitDiff = _array[i] - borrow; // Вычитаем заём
+        if (i < other._size) digitDiff -= other._array[i];
+        borrow = (digitDiff > _array[i]) ? 1 : 0; // Определяем, нужен ли заём
+        result._array[i] = (borrow) ? digitDiff + 7 : digitDiff;
+    }
+
+    // Удаляем ведущие нули
+    while (result._size > 0 && result._array[result._size - 1] == 0) {
         --result._size;
     }
 
     return result;
 }
 
-Seven& Seven::operator+=(const Seven &other) {
-    *this = *this + other;
-    return *this;
-}
-
-Seven& Seven::operator-=(const Seven &other) {
-    *this = *this - other;
-    return *this;
-}
-
-// --- Операции сравнения ---
-bool Seven::operator==(const Seven &other) const {
-    if (_size != other._size) return false;
+// Операторы сравнений
+// Равенство
+bool Seven::operator==(const Seven& other) const {
+    if (_size != other._size) return false; // Размеры должны совпадать
     for (size_t i = 0; i < _size; ++i) {
-        if (_array[i] != other._array[i]) return false;
+        if (_array[i] != other._array[i]) return false; // Проверяем каждый элемент
     }
     return true;
 }
 
-bool Seven::operator!=(const Seven &other) const {
-    return !(*this == other);
-}
-
-bool Seven::operator<(const Seven &other) const {
-    if (_size != other._size) return _size < other._size;
+// Меньше
+bool Seven::operator<(const Seven& other) const {
+    if (_size != other._size) return _size < other._size; // Сравниваем размеры
     for (size_t i = _size; i-- > 0;) {
-        if (_array[i] != other._array[i]) return _array[i] < other._array[i];
+        if (_array[i] != other._array[i]) {
+            return _array[i] < other._array[i]; // Сравниваем старшие разряды
+        }
     }
     return false;
 }
 
-bool Seven::operator>(const Seven &other) const {
-    return other < *this;
+// Больше
+bool Seven::operator>(const Seven& other) const {
+    return !(*this < other) && !(*this == other);
 }
 
-bool Seven::operator<=(const Seven &other) const {
-    return !(other < *this);
-}
-
-bool Seven::operator>=(const Seven &other) const {
-    return !(*this < other);
-}
-
-// --- Операторы присваивания ---
-Seven& Seven::operator=(const Seven &other) {
-    if (this == &other) return *this;
-
-    clean();
-_size = other._size;
-    _array = new unsigned char[_size];
-    for (size_t i = 0; i < _size; ++i) {
-        _array[i] = other._array[i];
+// Вывод
+void Seven::print(std::ostream& os) const {
+    for (size_t i = _size; i-- > 0;) {
+        os << static_cast<char>(_array[i] + '0');
     }
-    return *this;
-}
-
-Seven& Seven::operator=(Seven &&other) noexcept {
-    if (this == &other) return *this;
-
-    clean();
-    _size = other._size;
-    _array = other._array;
-    other._size = 0;
-    other._array = nullptr;
-    return *this;
-}
-
-// --- Приватные методы ---
-void Seven::validateSevenNumber(const std::string &t) {
-    for (char c : t) {
-        if (c < '0' || c > '6') {
-            throw std::invalid_argument("Invalid digit in seven-based number.");
-        }
-    }
-}
-
-void Seven::clean() {
-    delete[] _array;
-    _array = nullptr;
-    _size = 0;
 }
